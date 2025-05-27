@@ -1,4 +1,3 @@
-
 import requests
 from bs4 import BeautifulSoup
 from twilio.rest import Client
@@ -6,7 +5,7 @@ import os
 import time
 
 # --------------------------
-# הגדרות: כתובות הדפים לבדיקה
+# כתובות הדפים לבדיקה
 # --------------------------
 URLS = [
     "https://ipo.presglobal.store/order/2386",
@@ -14,10 +13,8 @@ URLS = [
     "https://ipo.presglobal.store/order/2388"
 ]
 
-CHECK_TEXT = "Sold out"  # המילה שמופיעה באתר כשאין כרטיסים
-
 # --------------------------
-# הגדרות Twilio (ל-Railway: דרך Environment Variables)
+# משתני סביבה (מהגדרות ב-Railway)
 # --------------------------
 TWILIO_SID = os.getenv("TWILIO_SID")
 TWILIO_AUTH = os.getenv("TWILIO_AUTH")
@@ -27,12 +24,15 @@ MY_PHONE = os.getenv("MY_PHONE")
 client = Client(TWILIO_SID, TWILIO_AUTH)
 
 def send_sms(body):
-    message = client.messages.create(
-        body=body,
-        from_=TWILIO_PHONE,
-        to=MY_PHONE
-    )
-    print(f"✅ SMS נשלח! SID: {message.sid}")
+    try:
+        message = client.messages.create(
+            body=body,
+            from_=TWILIO_PHONE,
+            to=MY_PHONE
+        )
+        print(f"✅ SMS נשלח! SID: {message.sid}")
+    except Exception as e:
+        print(f"❌ שגיאה בשליחת SMS: {e}")
 
 # --------------------------
 # פונקציה לבדוק זמינות כרטיסים
@@ -42,9 +42,9 @@ def check_tickets():
         try:
             response = requests.get(url, timeout=10)
             soup = BeautifulSoup(response.text, 'html.parser')
-            page_text = soup.get_text()
+            sold_out = soup.find("span", string="Sold out")
 
-            if CHECK_TEXT in page_text:
+            if sold_out:
                 print(f"❌ Sold out בעמוד: {url}")
             else:
                 print(f"🎉 כרטיסים זמינים בעמוד: {url}")
@@ -55,7 +55,7 @@ def check_tickets():
     return False
 
 # --------------------------
-# לולאת בדיקה - כל 10 דקות
+# לולאת בדיקה כל 10 דקות
 # --------------------------
 if __name__ == "__main__":
     while True:
@@ -64,4 +64,3 @@ if __name__ == "__main__":
             break  # עצור אחרי שמצאת כרטיסים
         print("💤 מחכה 10 דקות לבדיקה הבאה...")
         time.sleep(600)  # 600 שניות = 10 דקות
-
